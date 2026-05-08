@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+}
+
+enum Merchant {
+  amazon
+  flipkart
+  myntra
+  generic
+}
+
+enum Verdict {
+  buy
+  wait
+  avoid
+  compare
+  unknown
+}
+
+model User {
+  id           String         @id @default(uuid())
+  email        String         @unique
+  name         String?
+  passwordHash String?
+  googleSub    String?        @unique
+  provider     AuthProvider   @default(EMAIL)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  sessions     AgentSession[]
+  audits       AuditEvent[]
+  extensionAuthFlows ExtensionAuthFlow[]
+}
+
+model ExtensionAuthFlow {
+  id            String    @id @default(uuid())
+  userCode      String
+  pollTokenHash String    @unique
+  userId        String?
+  expiresAt     DateTime
+  completedAt   DateTime?
+  consumedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  user          User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([userId, createdAt])
+}
+
+model ProductSnapshot {
+  id           String         @id @default(uuid())
+  merchant     Merchant
+  url          String
+  title        String
+  priceAmount  Float?
+  priceRaw     String?
+  rating       Float?
+  reviewCount  Int?
+  seller       String?
+  availability String?
+  delivery     String?
+  returnPolicy String?
+  payload      Json
+  createdAt    DateTime       @default(now())
+  sessions     AgentSession[]
+
+  @@index([merchant, createdAt])
+}
+
+model AgentSession {
+  id                String          @id @default(uuid())
+  userId            String
+  productSnapshotId String
+  intent            Json
+  decision          Json
+  verdict           Verdict
+  model             String
+  createdAt         DateTime        @default(now())
+  user              User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productSnapshot   ProductSnapshot @relation(fields: [productSnapshotId], references: [id], onDelete: Cascade)
+  approvals         Approval[]
+  audits            AuditEvent[]
+
+  @@index([userId, createdAt])
+}
+
+model Approval {
+  id        String       @id @default(uuid())
+  sessionId String
+  action    Json
+  approved  Boolean
+  command   Json
+  createdAt DateTime     @default(now())
+  session   AgentSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model AuditEvent {
+  id        String        @id @default(uuid())
+  userId    String
+  sessionId String?
+  type      String
+  payload   Json
+  createdAt DateTime      @default(now())
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session   AgentSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+}
