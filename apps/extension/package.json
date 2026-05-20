@@ -1,0 +1,34 @@
+{
+  "name": "@bazaarlens/extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "prebuild": "node ../../scripts/generate-extension-icons.mjs",
+    "build": "wxt build",
+    "prezip": "node ../../scripts/generate-extension-icons.mjs",
+    "zip": "wxt zip",
+    "test": "vitest run",
+    "typecheck": "pnpm --filter @bazaarlens/shared build && tsc -p tsconfig.json --noEmit",
+    "postinstall": "wxt prepare"
+  },
+  "dependencies": {
+    "@bazaarlens/shared": "workspace:*",
+    "@tailwindcss/vite": "^4.2.1",
+    "@types/chrome": "^0.1.37",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@wxt-dev/module-react": "^1.2.1",
+    "lucide-react": "^0.577.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "tailwindcss": "^4.2.1",
+    "wxt": "^0.20.18"
+  },
+  "devDependencies": {
+    "happy-dom": "^20.0.11",
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.8"
+  }
+}
