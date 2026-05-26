@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <symbol id="bazaarlens-mark" viewBox="0 0 48 48">
+    <rect x="2.5" y="2.5" width="43" height="43" rx="9" fill="#fff7e6" stroke="#18302d" stroke-width="2"/>
+    <path d="M11 15.5h24l3.5 6H7.5z" fill="#e7ad38"/>
+    <path d="M14.2 15.5h5.4l-1 6h-5.7zM28.4 15.5h5.4l1.7 6h-5.8z" fill="#d85b3d"/>
+    <path d="M11.5 21.5h25v4.2c0 1.5-1.2 2.7-2.7 2.7-1.2 0-2.2-.8-2.6-1.9-.4 1.1-1.4 1.9-2.6 1.9s-2.2-.8-2.6-1.9c-.4 1.1-1.4 1.9-2.6 1.9s-2.2-.8-2.6-1.9c-.4 1.1-1.4 1.9-2.6 1.9-1.5 0-2.7-1.2-2.7-2.7z" fill="#fff7e6"/>
+    <path d="M14.5 28.5h16v8h-16z" fill="#174743"/>
+    <circle cx="31" cy="31" r="6.5" fill="#fffaf1" stroke="#174743" stroke-width="3"/>
+    <path d="m35.5 35.5 4.2 4.2" fill="none" stroke="#d85b3d" stroke-linecap="round" stroke-width="3.5"/>
+  </symbol>
+</svg>
