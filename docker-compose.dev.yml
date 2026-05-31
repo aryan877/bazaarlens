@@ -1,0 +1,284 @@
+name: bazaarlens-dev
+
+x-node-dev: &node-dev
+  image: node:22-alpine
+  working_dir: /workspace
+  environment:
+    PNPM_HOME: /pnpm
+    PNPM_STORE_DIR: /pnpm/store
+    CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
+    WATCHPACK_POLLING: ${WATCHPACK_POLLING:-true}
+  volumes:
+    - .:/workspace
+    - pnpm-store:/pnpm/store
+    - root-node-modules:/workspace/node_modules
+    - api-node-modules:/workspace/apps/api/node_modules
+    - web-node-modules:/workspace/apps/web/node_modules
+    - extension-node-modules:/workspace/apps/extension/node_modules
+    - shared-node-modules:/workspace/packages/shared/node_modules
+    - agent-node-modules:/workspace/packages/agent/node_modules
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bazaarlens-dev-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bazaarlens}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bazaarlens}
+      POSTGRES_DB: ${POSTGRES_DB:-bazaarlens}
+    ports:
+      - "${DEV_POSTGRES_PORT:-5438}:5432"
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bazaarlens} -d ${POSTGRES_DB:-bazaarlens}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mongo:
+    image: mongo:7.0
+    container_name: bazaarlens-dev-mongo
+    profiles: ["mcp"]
+    ports:
+      - "${DEV_MONGO_PORT:-27018}:27017"
+    volumes:
+      - mongo-dev-data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand({ ping: 1 }).ok' | grep 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  mongo-mcp:
+    image: node:22-alpine
+    container_name: bazaarlens-dev-mongo-mcp
+    profiles: ["mcp"]
+    environment:
+      MDB_MCP_CONNECTION_STRING: ${MONGODB_MEMORY_CONNECTION_STRING_DOCKER:-mongodb://mongo:27017/bazaarlens_agent}
+      MDB_MCP_TELEMETRY: disabled
+      MDB_MCP_LOGGERS: stderr
+      MDB_MCP_INDEX_CHECK: "false"
+    ports:
+      - "${DEV_MONGO_MCP_PORT:-9090}:9090"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    command: >
+      sh -lc "npx -y mongodb-mcp-server@1.12.0
+      --transport http
+      --httpHost=0.0.0.0
+      --httpPort=9090
+      --telemetry disabled
+      --loggers stderr"
+
+  deps:
+    <<: *node-dev
+    container_name: bazaarlens-dev-deps
+    command: >
+      sh -lc "corepack enable &&
+      corepack prepare pnpm@9.15.5 --activate &&
+      pnpm install --frozen-lockfile &&
+      pnpm --filter @bazaarlens/shared build &&
+      pnpm --filter @bazaarlens/agent build &&
+      pnpm --filter @bazaarlens/api prisma:generate"
+
+  shared-watch:
+    <<: *node-dev
+    container_name: bazaarlens-dev-shared-watch
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+    command: >
+      sh -lc "corepack enable &&
+      corepack prepare pnpm@9.15.5 --activate &&
+      pnpm --filter @bazaarlens/shared watch"
+
+  agent-watch:
+    <<: *node-dev
+    container_name: bazaarlens-dev-agent-watch
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+    command: >
+      sh -lc "corepack enable &&
+      corepack prepare pnpm@9.15.5 --activate &&
+      pnpm --filter @bazaarlens/agent watch"
+
+  api:
+    <<: *node-dev
+    container_name: bazaarlens-dev-api
+    environment:
+      PNPM_HOME: /pnpm
+      PNPM_STORE_DIR: /pnpm/store
+      CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
+      WATCHPACK_POLLING: ${WATCHPACK_POLLING:-true}
+      NODE_ENV: development
+      API_PORT: 8787
+      API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:8787}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      DATABASE_URL: ${DATABASE_URL_DOCKER:-postgresql://bazaarlens:bazaarlens@postgres:5432/bazaarlens?schema=public}
+      JWT_SECRET: ${JWT_SECRET:-replace-with-a-strong-dev-secret}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-14d}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      A2A_AGENT_KEY: ${A2A_AGENT_KEY:-}
+      A2A_AGENT_USER_EMAIL: ${A2A_AGENT_USER_EMAIL:-a2a-agent@bazaarlens.app}
+      GOOGLE_VERTEX_API_KEY: ${GOOGLE_VERTEX_API_KEY:-}
+      GOOGLE_VERTEX_PROJECT: ${GOOGLE_VERTEX_PROJECT:-}
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-}
+      GOOGLE_VERTEX_LOCATION: ${GOOGLE_VERTEX_LOCATION:-global}
+      GOOGLE_VERTEX_MODEL: ${GOOGLE_VERTEX_MODEL:-gemini-3.5-flash}
+      HACKATHON_TRACK: ${HACKATHON_TRACK:-mongodb}
+      AGENT_EVIDENCE_PROVIDERS: ${AGENT_EVIDENCE_PROVIDERS:-}
+      AGENT_MEMORY_ENABLED: ${AGENT_MEMORY_ENABLED:-false}
+      AGENT_MEMORY_BACKEND: ${AGENT_MEMORY_BACKEND:-mongodb}
+      AGENT_MEMORY_MCP_HTTP_URL: ${AGENT_MEMORY_MCP_HTTP_URL:-http://mongo-mcp:9090/mcp}
+      AGENT_MEMORY_MCP_COMMAND: ${AGENT_MEMORY_MCP_COMMAND:-}
+      AGENT_MEMORY_MCP_ARGS: ${AGENT_MEMORY_MCP_ARGS:-}
+      MONGODB_MEMORY_CONNECTION_STRING: ${MONGODB_MEMORY_CONNECTION_STRING_DOCKER:-mongodb://mongo:27017/bazaarlens_agent}
+      MONGODB_MEMORY_DATABASE: ${MONGODB_MEMORY_DATABASE:-bazaarlens_agent}
+      MONGODB_MEMORY_COLLECTION: ${MONGODB_MEMORY_COLLECTION:-product_memory}
+      MCP_READINESS_CHECKS_ENABLED: ${MCP_READINESS_CHECKS_ENABLED:-false}
+      MCP_READINESS_TIMEOUT_MS: ${MCP_READINESS_TIMEOUT_MS:-5000}
+      ELASTIC_MCP_ENABLED: ${ELASTIC_MCP_ENABLED:-false}
+      ELASTIC_MCP_HTTP_URL: ${ELASTIC_MCP_HTTP_URL:-}
+      ELASTIC_MCP_COMMAND: ${ELASTIC_MCP_COMMAND:-}
+      ELASTIC_MCP_ARGS: ${ELASTIC_MCP_ARGS:-}
+      ELASTIC_KIBANA_URL: ${ELASTIC_KIBANA_URL:-}
+      ELASTIC_KIBANA_SPACE: ${ELASTIC_KIBANA_SPACE:-}
+      ELASTIC_API_KEY: ${ELASTIC_API_KEY:-}
+      ELASTIC_PRODUCT_INDEX: ${ELASTIC_PRODUCT_INDEX:-}
+      ELASTIC_PRODUCT_SEARCH_TOOL: ${ELASTIC_PRODUCT_SEARCH_TOOL:-}
+      ELASTIC_PRODUCT_SOURCE_FIELDS: ${ELASTIC_PRODUCT_SOURCE_FIELDS:-title,merchant,priceRaw,url,seller,rating,reviewCount,availability,checkedAt}
+      ES_URL: ${ES_URL:-}
+      ES_API_KEY: ${ES_API_KEY:-}
+      ES_USERNAME: ${ES_USERNAME:-}
+      ES_PASSWORD: ${ES_PASSWORD:-}
+      ES_SSL_SKIP_VERIFY: ${ES_SSL_SKIP_VERIFY:-false}
+      ARIZE_MCP_ENABLED: ${ARIZE_MCP_ENABLED:-false}
+      ARIZE_MCP_COMMAND: ${ARIZE_MCP_COMMAND:-npx}
+      ARIZE_MCP_ARGS: ${ARIZE_MCP_ARGS:-}
+      FIVETRAN_MCP_ENABLED: ${FIVETRAN_MCP_ENABLED:-false}
+      FIVETRAN_MCP_COMMAND: ${FIVETRAN_MCP_COMMAND:-uvx}
+      FIVETRAN_MCP_ARGS: ${FIVETRAN_MCP_ARGS:-}
+      FIVETRAN_API_KEY: ${FIVETRAN_API_KEY:-}
+      FIVETRAN_API_SECRET: ${FIVETRAN_API_SECRET:-}
+      FIVETRAN_ALLOW_WRITES: ${FIVETRAN_ALLOW_WRITES:-false}
+      GITLAB_MCP_ENABLED: ${GITLAB_MCP_ENABLED:-false}
+      GITLAB_MCP_HTTP_URL: ${GITLAB_MCP_HTTP_URL:-}
+      GITLAB_MCP_COMMAND: ${GITLAB_MCP_COMMAND:-}
+      GITLAB_MCP_ARGS: ${GITLAB_MCP_ARGS:-}
+      GITLAB_MCP_AUTH_READY: ${GITLAB_MCP_AUTH_READY:-false}
+      GITLAB_PROJECT_ID: ${GITLAB_PROJECT_ID:-}
+      DYNATRACE_MCP_ENABLED: ${DYNATRACE_MCP_ENABLED:-false}
+      DYNATRACE_MCP_HTTP_URL: ${DYNATRACE_MCP_HTTP_URL:-}
+      DYNATRACE_ENVIRONMENT_URL: ${DYNATRACE_ENVIRONMENT_URL:-}
+      DYNATRACE_API_TOKEN: ${DYNATRACE_API_TOKEN:-}
+      PHOENIX_TRACING_ENABLED: ${PHOENIX_TRACING_ENABLED:-false}
+      PHOENIX_COLLECTOR_ENDPOINT: ${PHOENIX_COLLECTOR_ENDPOINT:-}
+      PHOENIX_HOST: ${PHOENIX_HOST:-}
+      PHOENIX_API_KEY: ${PHOENIX_API_KEY:-}
+      PHOENIX_PROJECT: ${PHOENIX_PROJECT:-}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-0}
+      RATE_LIMIT_DEFAULT_TTL_SECONDS: ${RATE_LIMIT_DEFAULT_TTL_SECONDS:-60}
+      RATE_LIMIT_DEFAULT_LIMIT: ${RATE_LIMIT_DEFAULT_LIMIT:-300}
+      RATE_LIMIT_AUTH_TTL_SECONDS: ${RATE_LIMIT_AUTH_TTL_SECONDS:-60}
+      RATE_LIMIT_AUTH_LIMIT: ${RATE_LIMIT_AUTH_LIMIT:-30}
+      RATE_LIMIT_AGENT_ANALYZE_TTL_SECONDS: ${RATE_LIMIT_AGENT_ANALYZE_TTL_SECONDS:-60}
+      RATE_LIMIT_AGENT_ANALYZE_LIMIT: ${RATE_LIMIT_AGENT_ANALYZE_LIMIT:-20}
+      RATE_LIMIT_AGENT_APPROVAL_TTL_SECONDS: ${RATE_LIMIT_AGENT_APPROVAL_TTL_SECONDS:-60}
+      RATE_LIMIT_AGENT_APPROVAL_LIMIT: ${RATE_LIMIT_AGENT_APPROVAL_LIMIT:-60}
+    ports:
+      - "${DEV_API_PORT:-8787}:8787"
+    volumes:
+      - .:/workspace
+      - pnpm-store:/pnpm/store
+      - root-node-modules:/workspace/node_modules
+      - api-node-modules:/workspace/apps/api/node_modules
+      - web-node-modules:/workspace/apps/web/node_modules
+      - extension-node-modules:/workspace/apps/extension/node_modules
+      - shared-node-modules:/workspace/packages/shared/node_modules
+      - agent-node-modules:/workspace/packages/agent/node_modules
+      - ${GOOGLE_APPLICATION_CREDENTIALS_HOST_DIR:-./deploy/secrets}:/run/secrets/bazaarlens:ro
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -lc "corepack enable &&
+      corepack prepare pnpm@9.15.5 --activate &&
+      pnpm --filter @bazaarlens/api prisma:deploy &&
+      pnpm --filter @bazaarlens/api dev"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:8787/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+
+  web:
+    <<: *node-dev
+    container_name: bazaarlens-dev-web
+    environment:
+      PNPM_HOME: /pnpm
+      PNPM_STORE_DIR: /pnpm/store
+      CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
+      WATCHPACK_POLLING: ${WATCHPACK_POLLING:-true}
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8787}
+      VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+    ports:
+      - "${DEV_WEB_PORT:-3000}:3000"
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+      api:
+        condition: service_healthy
+    command: >
+      sh -lc "corepack enable &&
+      corepack prepare pnpm@9.15.5 --activate &&
+      pnpm --filter @bazaarlens/web dev --host 0.0.0.0 --port 3000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+
+  extension:
+    <<: *node-dev
+    container_name: bazaarlens-dev-extension
+    profiles: ["extension"]
+    environment:
+      PNPM_HOME: /pnpm
+      PNPM_STORE_DIR: /pnpm/store
+      CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
+      WATCHPACK_POLLING: ${WATCHPACK_POLLING:-true}
+      WXT_API_URL: ${WXT_API_URL:-http://localhost:8787}
+    ports:
+      - "${DEV_EXTENSION_PORT:-3001}:3000"
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+    command: >
+      sh -lc "corepack enable &&
+      corepack prepare pnpm@9.15.5 --activate &&
+      pnpm --filter @bazaarlens/extension dev --host 0.0.0.0"
+
+volumes:
+  postgres-dev-data:
+  mongo-dev-data:
+  pnpm-store:
+  root-node-modules:
+  api-node-modules:
+  web-node-modules:
+  extension-node-modules:
+  shared-node-modules:
+  agent-node-modules:

@@ -1,0 +1,153 @@
+name: bazaarlens
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bazaarlens-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bazaarlens}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bazaarlens}
+      POSTGRES_DB: ${POSTGRES_DB:-bazaarlens}
+    ports:
+      - "5438:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bazaarlens} -d ${POSTGRES_DB:-bazaarlens}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    container_name: bazaarlens-api
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      API_PORT: 8787
+      API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:8787}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      DATABASE_URL: ${DATABASE_URL_DOCKER:-postgresql://bazaarlens:bazaarlens@postgres:5432/bazaarlens?schema=public}
+      JWT_SECRET: ${JWT_SECRET:-replace-with-a-strong-dev-secret}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-14d}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      A2A_AGENT_KEY: ${A2A_AGENT_KEY:-}
+      A2A_AGENT_USER_EMAIL: ${A2A_AGENT_USER_EMAIL:-a2a-agent@bazaarlens.app}
+      GOOGLE_VERTEX_API_KEY: ${GOOGLE_VERTEX_API_KEY:-}
+      GOOGLE_VERTEX_PROJECT: ${GOOGLE_VERTEX_PROJECT:-}
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-}
+      GOOGLE_VERTEX_LOCATION: ${GOOGLE_VERTEX_LOCATION:-global}
+      GOOGLE_VERTEX_MODEL: ${GOOGLE_VERTEX_MODEL:-gemini-3.5-flash}
+      HACKATHON_TRACK: ${HACKATHON_TRACK:-mongodb}
+      AGENT_EVIDENCE_PROVIDERS: ${AGENT_EVIDENCE_PROVIDERS:-}
+      AGENT_MEMORY_ENABLED: ${AGENT_MEMORY_ENABLED:-false}
+      AGENT_MEMORY_BACKEND: ${AGENT_MEMORY_BACKEND:-mongodb}
+      AGENT_MEMORY_MCP_HTTP_URL: ${AGENT_MEMORY_MCP_HTTP_URL:-}
+      AGENT_MEMORY_MCP_COMMAND: ${AGENT_MEMORY_MCP_COMMAND:-}
+      AGENT_MEMORY_MCP_ARGS: ${AGENT_MEMORY_MCP_ARGS:-}
+      MONGODB_MEMORY_CONNECTION_STRING: ${MONGODB_MEMORY_CONNECTION_STRING:-}
+      MONGODB_MEMORY_DATABASE: ${MONGODB_MEMORY_DATABASE:-bazaarlens_agent}
+      MONGODB_MEMORY_COLLECTION: ${MONGODB_MEMORY_COLLECTION:-product_memory}
+      MCP_READINESS_CHECKS_ENABLED: ${MCP_READINESS_CHECKS_ENABLED:-false}
+      MCP_READINESS_TIMEOUT_MS: ${MCP_READINESS_TIMEOUT_MS:-5000}
+      ELASTIC_MCP_ENABLED: ${ELASTIC_MCP_ENABLED:-false}
+      ELASTIC_MCP_HTTP_URL: ${ELASTIC_MCP_HTTP_URL:-}
+      ELASTIC_MCP_COMMAND: ${ELASTIC_MCP_COMMAND:-}
+      ELASTIC_MCP_ARGS: ${ELASTIC_MCP_ARGS:-}
+      ELASTIC_KIBANA_URL: ${ELASTIC_KIBANA_URL:-}
+      ELASTIC_KIBANA_SPACE: ${ELASTIC_KIBANA_SPACE:-}
+      ELASTIC_API_KEY: ${ELASTIC_API_KEY:-}
+      ELASTIC_PRODUCT_INDEX: ${ELASTIC_PRODUCT_INDEX:-}
+      ELASTIC_PRODUCT_SEARCH_TOOL: ${ELASTIC_PRODUCT_SEARCH_TOOL:-}
+      ELASTIC_PRODUCT_SOURCE_FIELDS: ${ELASTIC_PRODUCT_SOURCE_FIELDS:-title,merchant,priceRaw,url,seller,rating,reviewCount,availability,checkedAt}
+      ES_URL: ${ES_URL:-}
+      ES_API_KEY: ${ES_API_KEY:-}
+      ES_USERNAME: ${ES_USERNAME:-}
+      ES_PASSWORD: ${ES_PASSWORD:-}
+      ES_SSL_SKIP_VERIFY: ${ES_SSL_SKIP_VERIFY:-false}
+      ARIZE_MCP_ENABLED: ${ARIZE_MCP_ENABLED:-false}
+      ARIZE_MCP_COMMAND: ${ARIZE_MCP_COMMAND:-npx}
+      ARIZE_MCP_ARGS: ${ARIZE_MCP_ARGS:-}
+      FIVETRAN_MCP_ENABLED: ${FIVETRAN_MCP_ENABLED:-false}
+      FIVETRAN_MCP_COMMAND: ${FIVETRAN_MCP_COMMAND:-uvx}
+      FIVETRAN_MCP_ARGS: ${FIVETRAN_MCP_ARGS:-}
+      FIVETRAN_API_KEY: ${FIVETRAN_API_KEY:-}
+      FIVETRAN_API_SECRET: ${FIVETRAN_API_SECRET:-}
+      FIVETRAN_ALLOW_WRITES: ${FIVETRAN_ALLOW_WRITES:-false}
+      GITLAB_MCP_ENABLED: ${GITLAB_MCP_ENABLED:-false}
+      GITLAB_MCP_HTTP_URL: ${GITLAB_MCP_HTTP_URL:-}
+      GITLAB_MCP_COMMAND: ${GITLAB_MCP_COMMAND:-}
+      GITLAB_MCP_ARGS: ${GITLAB_MCP_ARGS:-}
+      GITLAB_MCP_AUTH_READY: ${GITLAB_MCP_AUTH_READY:-false}
+      GITLAB_PROJECT_ID: ${GITLAB_PROJECT_ID:-}
+      DYNATRACE_MCP_ENABLED: ${DYNATRACE_MCP_ENABLED:-false}
+      DYNATRACE_MCP_HTTP_URL: ${DYNATRACE_MCP_HTTP_URL:-}
+      DYNATRACE_ENVIRONMENT_URL: ${DYNATRACE_ENVIRONMENT_URL:-}
+      DYNATRACE_API_TOKEN: ${DYNATRACE_API_TOKEN:-}
+      PHOENIX_TRACING_ENABLED: ${PHOENIX_TRACING_ENABLED:-false}
+      PHOENIX_COLLECTOR_ENDPOINT: ${PHOENIX_COLLECTOR_ENDPOINT:-}
+      PHOENIX_HOST: ${PHOENIX_HOST:-}
+      PHOENIX_API_KEY: ${PHOENIX_API_KEY:-}
+      PHOENIX_PROJECT: ${PHOENIX_PROJECT:-}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-0}
+      RATE_LIMIT_DEFAULT_TTL_SECONDS: ${RATE_LIMIT_DEFAULT_TTL_SECONDS:-60}
+      RATE_LIMIT_DEFAULT_LIMIT: ${RATE_LIMIT_DEFAULT_LIMIT:-300}
+      RATE_LIMIT_AUTH_TTL_SECONDS: ${RATE_LIMIT_AUTH_TTL_SECONDS:-60}
+      RATE_LIMIT_AUTH_LIMIT: ${RATE_LIMIT_AUTH_LIMIT:-30}
+      RATE_LIMIT_AGENT_ANALYZE_TTL_SECONDS: ${RATE_LIMIT_AGENT_ANALYZE_TTL_SECONDS:-60}
+      RATE_LIMIT_AGENT_ANALYZE_LIMIT: ${RATE_LIMIT_AGENT_ANALYZE_LIMIT:-20}
+      RATE_LIMIT_AGENT_APPROVAL_TTL_SECONDS: ${RATE_LIMIT_AGENT_APPROVAL_TTL_SECONDS:-60}
+      RATE_LIMIT_AGENT_APPROVAL_LIMIT: ${RATE_LIMIT_AGENT_APPROVAL_LIMIT:-60}
+    ports:
+      - "8787:8787"
+    volumes:
+      - ${GOOGLE_APPLICATION_CREDENTIALS_HOST_DIR:-./deploy/secrets}:/run/secrets/bazaarlens:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:8787/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  web:
+    container_name: bazaarlens-web
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8787}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+    environment:
+      BAZAARLENS_API_URL: ${VITE_API_URL:-http://localhost:8787}
+      BAZAARLENS_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  extension-builder:
+    container_name: bazaarlens-extension-builder
+    profiles: ["extension"]
+    build:
+      context: .
+      dockerfile: apps/extension/Dockerfile
+      args:
+        WXT_API_URL: ${WXT_API_URL:-http://localhost:8787}
+    volumes:
+      - ./artifacts:/artifacts
+
+volumes:
+  postgres-data:
