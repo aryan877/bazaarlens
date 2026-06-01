@@ -1,0 +1,34 @@
+bazaarlens.xyz {
+	encode gzip
+	reverse_proxy 127.0.0.1:3102
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "no-referrer"
+	}
+
+	log {
+		output file /var/log/caddy/bazaarlens-web-access.log
+	}
+}
+
+www.bazaarlens.xyz {
+	redir https://bazaarlens.xyz{uri} permanent
+}
+
+api.bazaarlens.xyz {
+	encode gzip
+	reverse_proxy 127.0.0.1:8791
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+	}
+
+	log {
+		output file /var/log/caddy/bazaarlens-api-access.log
+	}
+}
