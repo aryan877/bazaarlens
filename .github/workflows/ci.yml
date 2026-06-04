@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.14.0"
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Create CI production env
+        run: |
+          mkdir -p .ci
+          cat > .ci/production.env <<'ENV'
+          NODE_ENV=production
+          APP_DOMAIN=ci.bazaarlens.example
+          API_DOMAIN=api.ci.bazaarlens.example
+          ACME_EMAIL=ops@ci.bazaarlens.example
+          API_PUBLIC_URL=https://api.ci.bazaarlens.example
+          CORS_ORIGIN=https://ci.bazaarlens.example
+          JWT_SECRET=ci-production-jwt-secret-with-more-than-32-characters
+          GOOGLE_CLIENT_ID=ci-google-client-id.apps.googleusercontent.com
+          A2A_AGENT_KEY=ci-a2a-agent-key-with-more-than-32-characters
+          GOOGLE_VERTEX_PROJECT=bazaarlens-ci-project
+          GOOGLE_VERTEX_LOCATION=global
+          GOOGLE_VERTEX_MODEL=gemini-3.5-flash
+          HACKATHON_TRACK=mongodb
+          AGENT_EVIDENCE_PROVIDERS=
+          AGENT_MEMORY_ENABLED=true
+          AGENT_MEMORY_BACKEND=mongodb
+          MONGODB_MEMORY_CONNECTION_STRING=mongodb://mongo:27017/bazaarlens_agent
+          MONGODB_MEMORY_DATABASE=bazaarlens_agent
+          MONGODB_MEMORY_COLLECTION=product_memory
+          TRUST_PROXY_HOPS=1
+          POSTGRES_USER=bazaarlens
+          POSTGRES_PASSWORD=ci-postgres-password
+          POSTGRES_DB=bazaarlens
+          DATABASE_URL=postgresql://bazaarlens:ci-postgres-password@postgres:5432/bazaarlens?schema=public
+          HTTP_HOST_PORT=80
+          HTTPS_HOST_PORT=443
+          VITE_API_URL=https://api.ci.bazaarlens.example
+          VITE_GOOGLE_CLIENT_ID=ci-google-client-id.apps.googleusercontent.com
+          WXT_API_URL=https://api.ci.bazaarlens.example
+          ENV
+
+      - run: pnpm verify
+
+      - run: pnpm prod:check -- .ci/production.env
+
+      - run: pnpm prod:caddy:validate -- .ci/production.env
+
+      - run: docker compose config --quiet
+
+      - run: docker compose --env-file .ci/production.env -f docker-compose.prod.yml config --quiet
+        env:
+          BAZAARLENS_ENV_FILE: .ci/production.env
