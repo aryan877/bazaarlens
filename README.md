@@ -1,10 +1,14 @@
-# BazaarLens
-
-**AI shopping copilot for Indian ecommerce.**  
-BazaarLens analyses product pages on Amazon.in, Flipkart, and Myntra and gives you a plain-language buying verdict before you add anything to your cart.
+<div align="center">
+  <img src="apps/web/public/favicon.svg" width="72" height="72" alt="BazaarLens logo" />
+  <h1>BazaarLens</h1>
+  <p><strong>AI shopping copilot for Indian ecommerce.</strong><br/>
+  Analyses product pages on Amazon.in, Flipkart, and Myntra and gives you a plain-language buying verdict before you add anything to your cart.</p>
 
 [![CI](https://github.com/aryan877/bazaarlens/actions/workflows/ci.yml/badge.svg)](https://github.com/aryan877/bazaarlens/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Live](https://img.shields.io/badge/live-bazaarlens.xyz-18302d)](https://bazaarlens.xyz)
+
+</div>
 
 ---
 
@@ -78,6 +82,17 @@ sequenceDiagram
 
 ---
 
+## Live
+
+| | |
+|---|---|
+| Web console | https://bazaarlens.xyz |
+| API health | https://api.bazaarlens.xyz/health/ready |
+| Swagger | https://api.bazaarlens.xyz/docs |
+| A2A agent card | https://api.bazaarlens.xyz/.well-known/agent.json |
+
+---
+
 ## Quick Start
 
 ```bash
@@ -87,12 +102,11 @@ pnpm install
 pnpm docker:dev:up
 ```
 
-Open:
+Local dev:
 
 - Web console: `http://localhost:3000`
 - API health: `http://localhost:8787/health/ready`
 - Swagger: `http://localhost:8787/docs`
-- A2A agent card: `http://localhost:8787/.well-known/agent.json`
 
 ---
 
