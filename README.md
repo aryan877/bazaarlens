@@ -62,7 +62,7 @@ sequenceDiagram
 | **Approval-gated actions** | Add-to-cart, wishlist, and comparison actions require explicit user approval; checkout, payment, OTP, and credential entry are outside scope by design |
 | **Product memory** | MongoDB MCP server stores past decisions so the agent learns your preferences over time |
 | **Multi-site extraction** | Amazon.in (DOM + JSON-LD), Flipkart (DOM + JSON fallback), Myntra (DOM + `window.__myx` fallback), and a generic fallback |
-| **Google Agent Platform** | BazaarLens registers as an A2A agent with a public agent card and supports JSON-RPC and HTTP+JSON transports |
+| **Google Agent Platform** | BazaarLens registers as a Gemini Enterprise / Agent Platform A2A agent with a public agent card, JSON-RPC and HTTP+JSON transports |
 | **Extension account linking** | No passwords in the extension — a short-lived 6-digit code ties the extension to your web account |
 | **Audit trail** | Every analysis, approval, and auth event is logged in Postgres |
 
@@ -90,6 +90,18 @@ sequenceDiagram
 | API health | https://api.bazaarlens.xyz/health/ready |
 | Swagger | https://api.bazaarlens.xyz/docs |
 | A2A agent card | https://api.bazaarlens.xyz/.well-known/agent.json |
+
+---
+
+## Key Config
+
+| Variable | Purpose |
+|---|---|
+| `GOOGLE_VERTEX_API_KEY` | Google Cloud Gemini credentials |
+| `HACKATHON_TRACK` | Active MCP partner track (`mongodb`, `arize`, `elastic`, `fivetran`, `gitlab`, `dynatrace`) |
+| `AGENT_EVIDENCE_PROVIDERS` | Extra evidence sources — empty = track only, `all` = every enabled provider |
+| `JWT_SECRET` | Required in production |
+| `GOOGLE_CLIENT_ID` | Enable Google Sign-In |
 
 ---
 
